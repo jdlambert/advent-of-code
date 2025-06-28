@@ -29,11 +29,13 @@ def is_ms(a, b):
     return a == 'M' and b == 'S' or a == 'S' and b == 'M'
 
 def x_mas(i, j):
+    if not grid[i][j] == 'A':
+        return False
     u = grid[i - 1]
     d = grid[i + 1]
     ul, ur = u[j - 1], u[j + 1]
     dl, dr = d[j - 1], d[j + 1]
-    return grid[i][j] == 'A' and is_ms(ul, dr) and is_ms(ur, dl)
+    return is_ms(ul, dr) and is_ms(ur, dl)
         
 p1 = sum(xmas_count(i, j) for i in range(N) for j in range(M))
 p2 = len([(i, j) for i in range(1, N - 1) for j in range(1, M - 1) if x_mas(i, j)])
