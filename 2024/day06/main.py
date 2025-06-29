@@ -15,8 +15,6 @@ for i, line in enumerate(lines):
         if '#' == c:
             obstacles.add((i, j))
 
-# the search space can be significantly reduceed, only checking spaces that were visited,
-# and starting the search immediately before collision
 def does_loop(oi, oj):
     if (oi, oj) == start_pos or (oi, oj) in obstacles:
         return False
@@ -37,15 +35,14 @@ def does_loop(oi, oj):
 
 di, dj = -1, 0
 visited = set()
-loopable = set()
 i, j = start_pos
 while 0 <= i < N and 0 <= j < M:
-    visited.add((i, j))
     if (i + di, j + dj) in obstacles:
         di, dj = dj, -di
+    visited.add((i, j))
     i, j = i + di, j + dj
 
 p1 = len(visited)
 print(f"Part one: {p1}")
-p2 = len([(i, j) for i in range(N) for j in range(M) if does_loop(i, j)])
+p2 = len({(i, j) for i, j in visited if does_loop(i, j)})
 print(f"Part two: {p2}")
