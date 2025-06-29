@@ -9,25 +9,19 @@ for line in data.splitlines():
     int_ops = [int(op) for op in operands.strip().split(" ")]
     candidates.append((int(total), int_ops))
 
-def concat_two(a, b):
-    return int(f"{a}{b}")
+def concat_two(seq):
+    return int("".join(str(op)) for op in seq)
 
-def possible(operands, concat=False):
-    if len(operands) > 1:
-        last, *rest = operands
-        possible_rest = possible(rest)
-        plus = [last + r for r in possible_rest]
-        times = [last * r for r in possible_rest]
-        concats = [concat_two(r, last) for r in possible_rest] if concat else []
-        return plus + times + concats
-    assert operands
-    return operands
+def plus_minuses(operands):
+    first, *rest = operands
+    accumulators = {first}
+    while rest:
+        first, *rest = rest
+        accumulators = {acc + first for acc in accumulators}.union({acc * first for acc in accumulators})
+    return accumulators
 
-def is_valid(total, operands, concat=False):
-    return total in possible(list(reversed(operands)), concat=concat)
-
-p1 = sum(total for total, operands in candidates if is_valid(total, operands))
-p2 = sum(total for total, operands in candidates if is_valid(total, operands, concat=True))
+p1 = sum(total for total, operands in candidates if total in plus_minuses(operands))
+p2 = 0
 
 print(f"Part one: {p1}")
 print(f"Part two: {p2}")
