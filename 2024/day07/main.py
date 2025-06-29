@@ -9,19 +9,23 @@ for line in data.splitlines():
     int_ops = [int(op) for op in operands.strip().split(" ")]
     candidates.append((int(total), int_ops))
 
-def concat_two(seq):
-    return int("".join(str(op)) for op in seq)
+def concat_two(a, b):
+    return int(f"{a}{b}")
 
-def plus_minuses(operands):
+def operatorize(operands, concat=False):
     first, *rest = operands
     accumulators = {first}
     while rest:
         first, *rest = rest
-        accumulators = {acc + first for acc in accumulators}.union({acc * first for acc in accumulators})
+        new_accumulators = {acc + first for acc in accumulators}
+        new_accumulators |= {acc * first for acc in accumulators}
+        if concat:
+            new_accumulators |= {concat_two(acc, first) for acc in accumulators}
+        accumulators = new_accumulators
     return accumulators
 
-p1 = sum(total for total, operands in candidates if total in plus_minuses(operands))
-p2 = 0
+p1 = sum(total for total, operands in candidates if total in operatorize(operands))
+p2 = sum(total for total, operands in candidates if total in operatorize(operands, concat=True))
 
 print(f"Part one: {p1}")
 print(f"Part two: {p2}")
