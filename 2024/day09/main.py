@@ -31,8 +31,9 @@ while i < j:
 
 defragged = {}
 for file_i, file_count, file_id in reversed(files):
-    for j in range(len(free_spaces)):
-        free_j, free_count = free_spaces[j]
+    for j, (free_j, free_count) in enumerate(free_spaces):
+        if free_j > file_i:
+            break
         if free_count >= file_count:
             for defragged_i in range(free_j, free_j + file_count):
                 defragged[defragged_i] = file_id
@@ -40,7 +41,7 @@ for file_i, file_count, file_id in reversed(files):
             free_j += file_count
             free_spaces[j] = free_j, free_count
             break
-    else:
+    if free_j > file_i:
         for defragged_i in range(file_i, file_i + file_count):
             defragged[defragged_i] = file_id
         
