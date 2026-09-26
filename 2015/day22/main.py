@@ -1,12 +1,14 @@
 import sys
 import re
 from dataclasses import dataclass, replace
+from collections import defaultdict
 import heapq
 
 with open("example.txt" if "x" in sys.argv else "input.txt") as f:
     data = f.read()
 
 boss_hp, boss_damage = [int(num) for num in re.findall(r"\d+", data)]
+
 
 @dataclass(order=True)
 class State:
@@ -19,59 +21,104 @@ class State:
     recharge_turns: int
     player_turn: bool
     hard_mode: bool
+    executed_spells: list
 
-def all_possible_turns(state):
-    if state.player_turn and state.hard_mode:
-        state = replace(state, health_remaining=state.health_remaining - 1)
-        if state.health_remaining < 1:
-            yield state
-            return
-    state = replace(
+    def is_better_than(self, other):
+        return (
+            self.mana_spent <= other.mana_spent
+            and self.boss_health_remaining <= other.boss_health_remaining
+            and self.health_remaining >= other.health_remaining
+            and self.mana_remaining >= other.mana_remaining
+        )
+
+
+def magic_missile(state):
+    if mana_state := try_spend_mana(state, 53):
+        yield replace(
+            mana_state,
+            boss_health_remaining=state.boss_health_remaining - 4,
+            executed_spells=state.executed_spells + ["magic missile"],
+        )
+
+
+def drain(state):
+    if mana_state := try_spend_mana(state, 73):
+        yield replace(
+            mana_state,
+            boss_health_remaining=state.boss_health_remaining - 2,
+            health_remaining=state.health_remaining + 2,
+            executed_spells=state.executed_spells + ["drain"],
+        )
+
+
+def shield(state):
+    if not state.shield_turns and (mana_state := try_spend_mana(state, 113)):
+        yield replace(
+            mana_state,
+            shield_turns=6,
+            executed_spells=state.executed_spells + ["shield"],
+        )
+
+
+def poison(state):
+    if not state.poison_turns and (mana_state := try_spend_mana(state, 173)):
+        yield replace(
+            mana_state,
+            poison_turns=6,
+            executed_spells=state.executed_spells + ["poison"],
+        )
+
+
+def recharge(state):
+    if not state.recharge_turns and (mana_state := try_spend_mana(state, 229)):
+        yield replace(
+            mana_state,
+            recharge_turns=5,
+            executed_spells=state.executed_spells + ["recharge"],
+        )
+
+
+def apply_effects(state):
+    return replace(
         state,
-        boss_health_remaining=state.boss_health_remaining - (3 if state.poison_turns else 0),
+        health_remaining=state.health_remaining
+        - (1 if state.player_turn and state.hard_mode else 0),
+        boss_health_remaining=state.boss_health_remaining
+        - (3 if state.poison_turns else 0),
         poison_turns=max(0, state.poison_turns - 1),
         mana_remaining=state.mana_remaining + (101 if state.recharge_turns else 0),
         recharge_turns=max(0, state.recharge_turns - 1),
         shield_turns=max(0, state.shield_turns - 1),
     )
+
+
+def boss_swings(state):
+    incoming_damage = max(1, boss_damage - (7 if state.shield_turns else 0))
+    yield replace(
+        state,
+        health_remaining=state.health_remaining - incoming_damage,
+        player_turn=True,
+    )
+
+
+def all_possible_turns(state):
+    state = apply_effects(state)
     if not state.player_turn and state.boss_health_remaining > 0:
-        incoming_damage = max(1, boss_damage - (7 if state.shield_turns else 0))
-        yield replace(
-            state,
-            health_remaining = state.health_remaining - incoming_damage,
-            player_turn=True
-        )
+        # if it's the boss's turn, it attacks me
+        yield from boss_swings(state)
     else:
+        # it's my turn
         state = replace(state, player_turn=False)
+        # if the boss died or i died, return immediately
         if state.boss_health_remaining < 1 or state.health_remaining < 1:
             yield state
             return
-        if mana_state := try_spend_mana(state, 53):
-            yield replace(
-                mana_state,
-                boss_health_remaining=state.boss_health_remaining - 4,
-            )
-        if mana_state := try_spend_mana(state, 73):
-            yield replace(
-                mana_state,
-                boss_health_remaining=state.boss_health_remaining - 2,
-                health_remaining=state.health_remaining + 2,
-            )
-        if not state.shield_turns and (mana_state := try_spend_mana(state, 113)):
-            yield replace(
-                mana_state,
-                shield_turns=6
-            )
-        if not state.poison_turns and (mana_state := try_spend_mana(state, 173)):
-            yield replace(
-                mana_state,
-                poison_turns=6
-            )
-        if not state.recharge_turns and (mana_state := try_spend_mana(state, 229)):
-            yield replace(
-                mana_state,
-                recharge_turns=5
-            )
+        yield from magic_missile(state)
+        yield from drain(state)
+        yield from shield(state)
+        yield from poison(state)
+        yield from recharge(state)
+
 
 def try_spend_mana(state: State, mana: int):
     if state.mana_remaining >= mana:
@@ -81,31 +128,53 @@ def try_spend_mana(state: State, mana: int):
             mana_remaining=state.mana_remaining - mana,
         )
 
+
+def push_if_improvement(frontier: list, visited: defaultdict, state: State):
+    key = (
+        state.player_turn,
+        state.recharge_turns,
+        state.poison_turns,
+        state.shield_turns,
+    )
+    seen = visited[key]
+    if any(other_state.is_better_than(state) for other_state in seen):
+        # we've already seen a strictly superior state, so we stop considering this state
+        return
+    # we discard all inferior states
+    seen[:] = [other for other in seen if not state.is_better_than(other)]
+    # and add our new state to our visited states
+    seen.append(state)
+    # and add it to the heap
+    heapq.heappush(frontier, state)
+
+
 def run_search(initial_state: State):
-    frontier = [initial_state]
+    visited = defaultdict(list)
+    frontier = []
+    push_if_improvement(frontier, visited, initial_state)
     while frontier:
         state = heapq.heappop(frontier)
         if state.boss_health_remaining < 1:
+            print(state.executed_spells)
             return state.mana_spent
         if state.health_remaining < 1:
             continue
         for child in all_possible_turns(state):
-            heapq.heappush(frontier, child)
+            push_if_improvement(frontier, visited, child)
+
 
 start = State(
-    mana_spent = 0,
-    mana_remaining = 500,
-    health_remaining = 50,
-    boss_health_remaining = boss_hp,
-    poison_turns = 0,
-    shield_turns = 0,
-    recharge_turns = 0,
-    player_turn = True,
-    hard_mode = False,
+    mana_spent=0,
+    mana_remaining=500,
+    health_remaining=50,
+    boss_health_remaining=boss_hp,
+    poison_turns=0,
+    shield_turns=0,
+    recharge_turns=0,
+    player_turn=True,
+    hard_mode=False,
+    executed_spells=[],
 )
-
-p1 = run_search(start)
-p2 = run_search(replace(start, hard_mode=True))
 
 print(f"Part one: {run_search(start)}")
 print(f"Part two: {run_search(replace(start, hard_mode=True))}")
