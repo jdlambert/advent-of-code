@@ -129,29 +129,9 @@ def try_spend_mana(state: State, mana: int):
         )
 
 
-def push_if_improvement(frontier: list, visited: defaultdict, state: State):
-    key = (
-        state.player_turn,
-        state.recharge_turns,
-        state.poison_turns,
-        state.shield_turns,
-    )
-    seen = visited[key]
-    if any(other_state.is_better_than(state) for other_state in seen):
-        # we've already seen a strictly superior state, so we stop considering this state
-        return
-    # we discard all inferior states
-    seen[:] = [other for other in seen if not state.is_better_than(other)]
-    # and add our new state to our visited states
-    seen.append(state)
-    # and add it to the heap
-    heapq.heappush(frontier, state)
-
-
 def run_search(initial_state: State):
-    visited = defaultdict(list)
     frontier = []
-    push_if_improvement(frontier, visited, initial_state)
+    heapq.heappush(frontier, initial_state)
     while frontier:
         state = heapq.heappop(frontier)
         if state.boss_health_remaining < 1:
@@ -159,8 +139,10 @@ def run_search(initial_state: State):
             return state.mana_spent
         if state.health_remaining < 1:
             continue
+        if any(other.is_better_than(state) for other in frontier):
+            continue
         for child in all_possible_turns(state):
-            push_if_improvement(frontier, visited, child)
+            heapq.heappush(frontier, child)
 
 
 start = State(
