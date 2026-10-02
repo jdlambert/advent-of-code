@@ -137,8 +137,6 @@ def run_search(initial_state: State):
         if state.boss_health_remaining < 1:
             print(state.executed_spells)
             return state.mana_spent
-        if state.health_remaining < 1:
-            continue
         if any(other.is_better_than(state) for other in frontier):
             continue
         for child in all_possible_turns(state):
