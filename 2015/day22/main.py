@@ -1,7 +1,6 @@
 import sys
 import re
 from dataclasses import dataclass, replace
-from collections import defaultdict
 import heapq
 
 with open("example.txt" if "x" in sys.argv else "input.txt") as f:
@@ -113,11 +112,8 @@ def all_possible_turns(state):
         if state.boss_health_remaining < 1 or state.health_remaining < 1:
             yield state
             return
-        yield from magic_missile(state)
-        yield from drain(state)
-        yield from shield(state)
-        yield from poison(state)
-        yield from recharge(state)
+        for spell in (magic_missile, drain, shield, poison, recharge):
+            yield from spell(state)
 
 
 def try_spend_mana(state: State, mana: int):
