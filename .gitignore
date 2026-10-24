@@ -1,0 +1,11 @@
+input.txt
+solution
+cookie
+target
+a.out
+
+# editor/LSP caches
+.calva
+.clj-kondo
+.cpcache
+.lsp
