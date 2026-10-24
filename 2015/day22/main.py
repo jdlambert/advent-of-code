@@ -28,6 +28,10 @@ class State:
             and self.boss_health_remaining <= other.boss_health_remaining
             and self.health_remaining >= other.health_remaining
             and self.mana_remaining >= other.mana_remaining
+            and self.shield_turns == other.shield_turns
+            and self.poison_turns == other.poison_turns
+            and self.recharge_turns == other.recharge_turns
+            and self.player_turn == other.player_turn
         )
 
 
